@@ -1,1 +1,38 @@
-# gobbs
+# GoBBS 论坛
+
+## 技术栈
+
+- **后端**： GO，Gin
+- **数据库**：MySQL，Redis
+- **ORM**: GORM
+
+## 如何运行
+
+1.**克隆项目**
+
+```bash
+git clone []
+cd gobbs
+```
+
+2. **配置环境**
+
+- 修改配置文件`config.yaml`，填入你的MySQL和Redis地址。
+
+3. **安装依赖**
+
+```bash
+go mod tidy
+```
+
+4. **启动项目**
+   ```bash
+   go run main.go
+   ```
+   服务将默认启动在 `http://localhost:8080`。
+## 核心功能
+
+* [cite_start]用户模块 (注册、登录) [cite: 186, 187]
+* [cite_start]帖子模块 (发布、查看列表、查看详情) [cite: 206, 209, 210]
+* [cite_start]评论模块 (发表评论) [cite: 237]
+* [cite_start]互动模块 (点赞) [cite: 241]
