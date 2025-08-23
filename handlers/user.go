@@ -2,12 +2,23 @@ package handlers
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
 	"gobbs/models"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	"net/http"
 )
+
+var MySecret = []byte("这是一个安全的密钥")
+
+type MyClaims struct {
+	UserID   int64  `json:"userID"`
+	Username string `json:"username"`
+	jwt.RegisteredClaims
+}
 
 // 注册接口
 func RegisterHandler(db *gorm.DB) gin.HandlerFunc {
@@ -96,11 +107,28 @@ func LoginHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "用户不存在或密码错误"})
 			return
 		}
+		//密码正确：生成JWT Token
+		claims := MyClaims{
+			UserID:   user.UserID,
+			Username: user.Username,
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				Issuer:    "gobbs-project",
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+		tokenString, err := token.SignedString(MySecret)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "生成Token失败"})
+			return
+		}
 
 		//登录成功
 		c.JSON(http.StatusOK, gin.H{
-			"message":  "登录成功",
-			"username": user.Username,
+			"message": "登录成功",
+			"token":   tokenString,
 		})
 	}
 }

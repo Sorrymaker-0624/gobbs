@@ -3,14 +3,27 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"gobbs/handlers"
+	"gobbs/middlewares"
 	"gorm.io/gorm"
+	"net/http"
 )
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB) {
-	userRoutes := r.Group("users")
+	r.POST("/register", handlers.RegisterHandler(db))
+	r.POST("/login", handlers.LoginHandler(db))
+	r.GET("/users/:username", handlers.GetUserInfoHandler(db))
+
+	v1 := r.Group("/api/v1")
+	v1.Use(middlewares.JWTAuthMiddleware())
 	{
-		userRoutes.POST("/register", handlers.RegisterHandler(db))
-		userRoutes.POST("/login", handlers.LoginHandler(db))
-		userRoutes.POST("/userpage", handlers.GetUserInfoHandler(db))
+		v1.GET("/profile", func(c *gin.Context) {
+			userID, _ := c.Get("userID")
+			username, _ := c.Get("username")
+			c.JSON(http.StatusOK, gin.H{
+				"message":  "这是受保护的个人信息接口",
+				"userID":   userID,
+				"username": username,
+			})
+		})
 	}
 }
