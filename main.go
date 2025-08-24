@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/bwmarrin/snowflake"
 	"gobbs/models" // 导入你刚刚创建的 models 包
 	"gobbs/routes"
 	"log"
@@ -13,27 +14,25 @@ import (
 )
 
 func main() {
-	// --- 数据库连接部分 ---
-	// 【你需要写的】
-	// 把这里的 "root:your_password@tcp(127.0.0.1:3306)/gobbs?..." 字符串，
-	// 换成你自己的真实MySQL配置。
 	dsn := "root:tkc04624@tcp(127.0.0.1:3306)/gobbs?charset=utf8mb4&parseTime=True&loc=Local"
-
-	// 【模板】
-	// 下面的代码是标准的GORM操作流程，你可以先复制粘贴，理解每一部分的作用。
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("连接数据库失败, err: %v\n", err)
 	}
 	fmt.Println("数据库连接成功!")
-	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{})
 	fmt.Println("数据库迁移成功!")
 
+	node, err := snowflake.NewNode(1)
+	if err != nil {
+		log.Fatalf("雪花算法节点创建失败, err: %v\n", err)
+	}
+	fmt.Println("雪花算法节点创建成功!")
 	//2.初始化Gin引擎
 	r := gin.Default()
 
 	//3.注册路由（调用routes包里的函数，并把db对象传进去）
-	routes.SetupRoutes(r, db)
+	routes.SetupRoutes(r, db, node)
 
 	//4.启动Web服务
 	fmt.Println("Web 服务启动，监听在8080端口...")

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gobbs/handlers"
 	"gobbs/middlewares"
@@ -8,7 +9,7 @@ import (
 	"net/http"
 )
 
-func SetupRoutes(r *gin.Engine, db *gorm.DB) {
+func SetupRoutes(r *gin.Engine, db *gorm.DB, node *snowflake.Node) {
 	r.POST("/register", handlers.RegisterHandler(db))
 	r.POST("/login", handlers.LoginHandler(db))
 	r.GET("/users/:username", handlers.GetUserInfoHandler(db))
@@ -25,5 +26,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				"username": username,
 			})
 		})
+		v1.POST("/posts", handlers.CreatePostHandler(db, node))
 	}
 }
