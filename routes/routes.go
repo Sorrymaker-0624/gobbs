@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gobbs/handlers"
 	"gobbs/middlewares"
@@ -9,10 +8,12 @@ import (
 	"net/http"
 )
 
-func SetupRoutes(r *gin.Engine, db *gorm.DB, node *snowflake.Node) {
+func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	r.POST("/register", handlers.RegisterHandler(db))
 	r.POST("/login", handlers.LoginHandler(db))
 	r.GET("/users/:username", handlers.GetUserInfoHandler(db))
+	r.GET("/posts", handlers.GetPostListHandler(db))
+	r.GET("/posts/:post_id", handlers.GetPostDetailHandler(db))
 
 	v1 := r.Group("/api/v1")
 	v1.Use(middlewares.JWTAuthMiddleware())
@@ -26,6 +27,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, node *snowflake.Node) {
 				"username": username,
 			})
 		})
-		v1.POST("/posts", handlers.CreatePostHandler(db, node))
+		v1.POST("/posts", handlers.CreatePostHandler(db))
 	}
 }

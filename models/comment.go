@@ -4,9 +4,8 @@ import "time"
 
 type Comment struct {
 	ID        uint   `gorm:"primarykey"`
-	CommentID int64  `gorm:"unique;not null"`
-	PostID    int64  `gorm:"not null"`
-	AuthorID  int64  `gorm:"not null"`
+	PostID    uint   `gorm:"not null"` // [修改] 类型改为 uint
+	AuthorID  uint   `gorm:"not null"` // [修改] 类型改为 uint
 	Content   string `gorm:"type:text;not null"`
 	Status    int8   `gorm:"not null;default:1"`
 	CreatedAt time.Time

@@ -15,7 +15,7 @@ import (
 var MySecret = []byte("这是一个安全的密钥")
 
 type MyClaims struct {
-	UserID   int64  `json:"userID"`
+	ID       uint   `json:"userID"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
@@ -109,7 +109,7 @@ func LoginHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		//密码正确：生成JWT Token
 		claims := MyClaims{
-			UserID:   user.UserID,
+			ID:       user.ID,
 			Username: user.Username,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),

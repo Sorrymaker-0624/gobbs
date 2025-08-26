@@ -9,12 +9,6 @@ import (
 	"strings"
 )
 
-type MyClaims struct {
-	UserID   int64  `json:"userID"`
-	Username string `json:"username"`
-	jwt.RegisteredClaims
-}
-
 func JWTAuthMiddleware() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		//从请求头获取Token
@@ -34,7 +28,7 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 		}
 
 		tokenString := parts[1]
-		token, err := jwt.ParseWithClaims(tokenString, &MyClaims{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString, &handlers.MyClaims{}, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("非预期的签名方法")
 			}
@@ -47,8 +41,8 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 			return
 		}
 
-		if claims, ok := token.Claims.(*MyClaims); ok && token.Valid {
-			c.Set("userID", claims.UserID)
+		if claims, ok := token.Claims.(*handlers.MyClaims); ok && token.Valid {
+			c.Set("userID", claims.ID)
 			c.Set("username", claims.Username)
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的Token Claims"})
