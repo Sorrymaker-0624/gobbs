@@ -1,8 +1,12 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gobbs/models"
 	"gorm.io/gorm"
@@ -99,7 +103,7 @@ type PostDetailResponse struct {
 	AuthorName  string    `json:"author_name"` // 附带上作者名
 }
 
-func GetPostDetailHandler(db *gorm.DB) gin.HandlerFunc {
+func GetPostDetailHandler(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		postIDStr := c.Param("post_id")
 
@@ -113,11 +117,29 @@ func GetPostDetailHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		redisKey := fmt.Sprintf("post:%d", postID)
+
+		postDataBytes, err := rdb.Get(context.Background(), redisKey).Bytes()
+		if err == nil {
+			zap.L().Info("缓存命中", zap.String("key", redisKey))
+			var postDetail PostDetailResponse
+			json.Unmarshal(postDataBytes, &postDetail)
+			c.JSON(http.StatusOK, postDetail)
+			return
+		}
+
+		zap.L().Warn("缓存未命中，查询数据库", zap.String("key", redisKey))
+
 		var post models.Post
 		result := db.Where("id = ?", postID).Preload("User").First(&post)
 
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "帖子不存在"})
+			return
+		}
+		if result.Error != nil {
+			zap.L().Error("数据库查询失败", zap.Error(result.Error))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器内部错误"})
 			return
 		}
 
@@ -128,8 +150,57 @@ func GetPostDetailHandler(db *gorm.DB) gin.HandlerFunc {
 			Title:       post.Title,
 			Content:     post.Content,
 			CreatedAt:   post.CreatedAt,
-			AuthorName:  post.User.Username, // 从预加载的User对象中获取用户名
+			AuthorName:  post.User.Username,
+		}
+
+		postJsonBytes, err := json.Marshal(response)
+		if err != nil {
+			zap.L().Error("序列化帖子数据失败", zap.Error(err))
+		} else {
+			rdb.Set(context.Background(), redisKey, postJsonBytes, 5*time.Minute)
 		}
 		c.JSON(http.StatusOK, response)
+	}
+}
+
+func LikePostHandler(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		postIDStr := c.Param("post_id")
+		postID, err := strconv.ParseUint(postIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "帖子ID格式错误"})
+			return
+		}
+
+		userIDValue, _ := c.Get("userID")
+		userID := userIDValue.(uint)
+
+		redisKey := fmt.Sprintf("post:likes:%d", postID)
+		isMember, err := rdb.SIsMember(context.Background(), redisKey, userID).Result()
+		if err != nil {
+			zap.L().Error("Redis查询点赞状态失败", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器内部错误"})
+			return
+		}
+		var message string
+		var liked bool
+
+		if isMember {
+			rdb.SRem(context.Background(), redisKey, userID)
+			message = "取消点赞成功"
+			liked = false
+		} else {
+			rdb.SAdd(context.Background(), redisKey, userID)
+			message = "点赞成功"
+			liked = true
+		}
+
+		likesCount, _ := rdb.SCard(context.Background(), redisKey).Result()
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": message,
+			"likes":   likesCount,
+			"liked":   liked,
+		})
 	}
 }

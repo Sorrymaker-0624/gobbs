@@ -2,20 +2,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"gobbs/config"
 	"gobbs/logger"
-	"gobbs/models" // 导入你刚刚创建的 models 包
+	"gobbs/models"
 	"gobbs/routes"
+
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
+var db *gorm.DB
+var rdb *redis.Client
+
 func main() {
 	logger.Init()
-
 	config.LoadConfig()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
@@ -25,7 +30,6 @@ func main() {
 		config.AppConfig.MySQL.Port,
 		config.AppConfig.MySQL.DBName,
 	)
-
 	var err error
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -35,9 +39,19 @@ func main() {
 	db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{})
 	zap.L().Info("数据库迁移成功!")
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", config.AppConfig.Redis.Host, config.AppConfig.Redis.Port),
+		Password: config.AppConfig.Redis.Password,
+		DB:       config.AppConfig.Redis.DB,
+	})
+	_, err = rdb.Ping(context.Background()).Result()
+	if err != nil {
+		zap.L().Fatal("链接Redis失败", zap.Error(err))
+	}
+	zap.L().Info("Redis连接成功！")
 	//2.初始化Gin引擎，注册路由
 	r := gin.Default()
-	routes.SetupRoutes(r, db)
+	routes.SetupRoutes(r, db, rdb)
 
 	//4.启动Web服务
 	port := config.AppConfig.Server.Port

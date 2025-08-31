@@ -10,4 +10,5 @@ type Comment struct {
 	Status    int8   `gorm:"not null;default:1"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	User      User `gorm:"foreignKey:AuthorID"`
 }
