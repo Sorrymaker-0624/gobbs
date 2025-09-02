@@ -69,7 +69,7 @@ func SessionAuthMiddleware(rdb *redis.Client) gin.HandlerFunc {
 		}
 		sessionID := parts[1]
 
-		sessionDataBytes, err := rdb.Get(context.Background(), "session :"+sessionID).Bytes()
+		sessionDataBytes, err := rdb.Get(context.Background(), "session:"+sessionID).Bytes()
 		if err == redis.Nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的Session或已过期"})
 			c.Abort()
